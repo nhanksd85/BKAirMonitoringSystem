@@ -107,6 +107,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         initUI();
         initUiFlags();
         goFullscreen();
+        openUART();
     }
 
 

@@ -5,7 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/btn_background"
-    tools:context="hello.world.fpt.MainActivity">
+    tools:context="hello.world.fpt.MainActivity"
+    android:padding="30dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -166,6 +167,7 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:textSize="@dimen/caption_media_size"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Bụi PM 1.0 (μ/m3)"
@@ -211,6 +213,7 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:textSize="@dimen/caption_media_size"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Bụi PM 2.5 (μ/m3)"
@@ -255,6 +258,7 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:textSize="@dimen/caption_media_size"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Bụi PM 10 (μ/m3)"
@@ -308,6 +312,7 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:textSize="@dimen/caption_media_size"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Khí CO2 (ppm)"
@@ -353,6 +358,7 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:textSize="@dimen/caption_media_size"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Khí CO (ppm)"
@@ -397,6 +403,7 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:textSize="@dimen/caption_media_size"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Formaldehyd (μ/m3)"
