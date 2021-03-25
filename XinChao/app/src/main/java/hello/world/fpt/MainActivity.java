@@ -82,7 +82,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
     TextView txtPM_1_0, txtPM_2_5, txtPM_10, txtCO2, txtCO, txtHCHO;
     TextView txtTemp, txtHumi, txtLocation;
 
-
+    Button btnSetting, btnExit;
 
     private void initUI(){
         txtPM_1_0   = findViewById(R.id.txtPM_1_0);
@@ -108,8 +108,25 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         initUiFlags();
         goFullscreen();
         openUART();
-    }
 
+        btnSetting = findViewById(R.id.btnSetting);
+        btnSetting.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                launchAppFromPackageName("com.android.settings");
+            }
+        });
+
+        btnExit = findViewById(R.id.btnExit);
+        btnExit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                launchAppFromPackageName("com.android.rockchip");
+            }
+        });
+
+
+    }
 
 
 
@@ -151,7 +168,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
                     port.open(connection);
                     port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
 
-                    port.write("ABC#".getBytes(), 1000);
+                    //port.write("ABC#".getBytes(), 1000);
 
                     SerialInputOutputManager usbIoManager = new SerialInputOutputManager(port, this);
                     Executors.newSingleThreadExecutor().submit(usbIoManager);
@@ -166,26 +183,59 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
     }
 
 
-    private void sendDataToRapido(String[] data){
+    private void sendDataToRapido(final String[] data){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                txtTemp.setText(data[0] + "");
+                txtHumi.setText(data[1] + "");
+                txtPM_1_0.setText(data[2] + "");
+                txtPM_2_5.setText(data[3] + "");
+                txtPM_10.setText(data[4] + "");
+                txtCO2.setText(data[5] + "");
+                txtCO.setText(data[6] + "");
+                txtHCHO.setText(data[7] + "");
+            }
+        });
+
+
         OkHttpClient okHttpClient = new OkHttpClient();
         Request.Builder builder = new Request.Builder();
 
         String url = "https://rapido.npnlab.com/api/rapido/push?station_id=" + "9" +
-                "&sensors[0].id=1010&sensors[0].value=SEN_PM1_0" +
-                "&sensors[1].id=1011&sensors[1].value=SEN_PM2_5" +
-                "&sensors[2].id=1012&sensors[2].value=SEN_PM_10" +
-                "&sensors[3].id=1013&sensors[3].value=SEN_CO2_PWM" +
-                "&sensors[4].id=1014&sensors[4].value=SEN_CO2_PPM" +
-                "&sensors[5].id=1015&sensors[5].value=SEN_CO_PWM" +
-                "&sensors[6].id=1016&sensors[6].value=SEN_CO_PPM";
 
-        url = url.replaceAll("SEN_PM1_0", data[0]);
-        url = url.replaceAll("SEN_PM2_5", data[1]);
-        url = url.replaceAll("SEN_PM_10", data[2]);
-        url = url.replaceAll("SEN_CO2_PWM", data[3]);
-        url = url.replaceAll("SEN_CO2_PPM", data[4]);
-        url = url.replaceAll("SEN_CO_PWM", data[5]);
+                "&sensors[0].id=1&sensors[0].value=SEN_TDS" +
+                "&sensors[1].id=1005&sensors[1].value=SEN_DHT11_TEMP" +
+                "&sensors[2].id=1006&sensors[2].value=SEN_DHT11_HUMI" +
+
+
+                "&sensors[3].id=1010&sensors[3].value=SEN_PM1_0" +
+                "&sensors[4].id=1011&sensors[4].value=SEN_PM2_5" +
+                "&sensors[5].id=1012&sensors[5].value=SEN_PM_10" +
+
+                "&sensors[6].id=1014&sensors[6].value=SEN_CO2_PPM" +
+
+                "&sensors[7].id=1016&sensors[7].value=SEN_CO_PPM" +
+
+                "&sensors[8].id=1017&sensors[8].value=SEN_HCHO"+
+                "&sensors[9].id=1019&sensors[9].value=SEN_HDS";
+
+
+
+        url = url.replaceAll("SEN_TDS", data[0]);
+        url = url.replaceAll("SEN_HDS", data[1]);
+        url = url.replaceAll("SEN_DHT11_TEMP", data[0]);
+        url = url.replaceAll("SEN_DHT11_HUMI", data[1]);
+
+
+        url = url.replaceAll("SEN_PM1_0", data[2]);
+        url = url.replaceAll("SEN_PM2_5", data[3]);
+        url = url.replaceAll("SEN_PM_10", data[4]);
+
+        url = url.replaceAll("SEN_CO2_PPM", data[5]);
+
         url = url.replaceAll("SEN_CO_PPM", data[6]);
+        url = url.replaceAll("SEN_HCHO", data[7]);
         Log.d("ABC", url);
 
         Request request = builder.url(url).build();
@@ -206,7 +256,30 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         });
     }
 
+    private void sendHuRuKuServer(String data){
+        String url = "http://hazard-monitoring-system.herokuapp.com/api/1.0/getData?gatewayID=1&sensorID=1&sensorValue=["
+        + data + "]&latlon=[10.23,106.76]";
+        OkHttpClient okHttpClient = new OkHttpClient();
+        Request.Builder builder = new Request.Builder();
 
+        Request request = builder.url(url).build();
+
+
+
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Request request, IOException e) {
+                Log.d("ABC","Testing fail");
+            }
+
+            @Override
+            public void onResponse(Response response) throws IOException {
+                Log.d("ABC","Server response " + response.body().string());
+
+            }
+        });
+
+    }
 
     String buffer  = "";
     void processBuffer(){
@@ -215,19 +288,19 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         Pattern sensory_data = Pattern.compile("\\#(.+)\\!");
         Matcher m = sensory_data.matcher(new String(buffer));
         while (m.find() == true){
-//            String data = m.group(1);
-//            Log.d("ABC", data);
-//            if(counter >= 15 * 60) {
-//                sendDataToRapido(data.split(Pattern.quote(",")));
-//                counter = 0;
-//            }
-//            buffer = "";
+            String data = m.group(1);
+            Log.d("ABC", data);
+
+            sendDataToRapido(data.split(Pattern.quote(",")));
+            sendHuRuKuServer(data);
+            buffer = "";
         }
     }
 
     @Override
     public void onNewData(byte[] data) {
         buffer += new String(data);
+        Log.d("ABC", new String(data));
         processBuffer();
     }
 
