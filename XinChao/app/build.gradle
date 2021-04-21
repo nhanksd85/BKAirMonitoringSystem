@@ -6,8 +6,8 @@ android {
         applicationId "bk.iot.gateway"
         minSdkVersion 17
         targetSdkVersion 18
-        versionCode 2123
-        versionName "1.212.3"
+        versionCode 2125
+        versionName "1.212.5"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -33,11 +33,21 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+
+
     implementation 'com.squareup.okhttp:okhttp:2.4.0'
+
+
     implementation 'com.jjoe64:graphview:4.2.2'
+
     compile 'com.github.mik3y:usb-serial-for-android:2.+'
 
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.0'
     implementation 'org.eclipse.paho:org.eclipse.paho.android.service:1.1.1'
+
+    compile 'com.scottyab:aescrypt:0.0.1'
+
+    // Gson
+    compile 'com.google.code.gson:gson:2.8.1'
 
 }

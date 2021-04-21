@@ -27,6 +27,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
@@ -34,6 +35,7 @@ import com.hoho.android.usbserial.util.SerialInputOutputManager;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
+import com.scottyab.aescrypt.AESCrypt;
 import com.squareup.okhttp.Callback;
 import com.squareup.okhttp.Headers;
 import com.squareup.okhttp.OkHttpClient;
@@ -46,19 +48,28 @@ import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
@@ -67,6 +78,10 @@ import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+
+import hello.world.fpt.Models.CalibModel;
 import okio.GzipSource;
 import okio.Okio;
 
@@ -96,7 +111,6 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         txtHumi     = findViewById(R.id.txtHumi);
         txtLocation = findViewById(R.id.txtLocation);
 
-
     }
 
 
@@ -125,10 +139,21 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
             }
         });
 
+        //Log.d(TAG, AES256("30,41,15,23,23,1043,0,0"));
+        //postHuRuKuServer("30,41,15,23,23,1043,0,0");
+        //Log.d(TAG, bytesToHex(AES128("ABCDEFGHIJKLMNOPABCDEFGHIJKLMNOP")));
 
+        //txtLocation.setText(bytesToHex(DecodeAES128(AES128("ABCDEFGHIJKLMNOPABCDEFGHIJKLMNOP"))));
+
+        //Log.d(TAG,bytesToHex(DecodeAES128(test_64_byte)));
+
+        txtLocation.setText(bytesToHex(DecodeAES128(test_64_byte)));
+        setup_reset_timer();
+        setup_calib_timer();
+        //testConvert();
     }
 
-
+    CalibModel[] mCalibSensors;
 
     public void launchAppFromPackageName(String packageName)
     {
@@ -166,7 +191,8 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
                 port = driver.getPorts().get(0);
                 try {
                     port.open(connection);
-                    port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+                    //port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+                    port.setParameters(9600, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
 
                     //port.write("ABC#".getBytes(), 1000);
 
@@ -181,6 +207,131 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         }
 
     }
+
+
+
+
+    private void sendDataToThingSpeak(int temp, int humi){
+        String url ="https://api.thingspeak.com/update?api_key=5GWU7UTD50GU8T0O&field1="+ temp + "&field2=" + humi;
+        OkHttpClient okHttpClient = new OkHttpClient();
+        Request.Builder builder = new Request.Builder();
+        Request request = builder.url(url).build();
+
+
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Request request, IOException e) {
+                Log.d("ABC", "Request is fail");
+            }
+
+            @Override
+            public void onResponse(Response response) throws IOException {
+                Log.d("ABC", "Request is successful");
+                response.body().string();
+            }
+        });
+    }
+
+    private void getDataFromThingSpeak(int number_of_points){
+        String url = "https://api.thingspeak.com/channels/1352683/feeds.json?results=" + number_of_points;
+        OkHttpClient okHttpClient = new OkHttpClient();
+        Request.Builder builder = new Request.Builder();
+        Request request = builder.url(url).build();
+
+
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Request request, IOException e) {
+                Log.d("ABC", "Request is fail");
+            }
+
+            @Override
+            public void onResponse(Response response) throws IOException {
+
+                String data = response.body().string();
+                //TODO
+
+                Log.d("ABC", data);
+            }
+        });
+    }
+
+
+    Timer aTimer;
+    private int timer_counter = 30;
+    private void setup_reset_timer(){
+        aTimer = new Timer();
+        TimerTask aTask = new TimerTask() {
+            @Override
+            public void run() {
+                if(timer_counter > 0){
+                    timer_counter--;
+                }else{
+                    //reset_app();
+                }
+            }
+        };
+        aTimer.schedule(aTask, 1000,1000);
+    }
+
+
+    Timer aCalibTimer;
+    private int calib_counter = 60;
+    private void setup_calib_timer(){
+        aCalibTimer = new Timer();
+        TimerTask aTask = new TimerTask() {
+            @Override
+            public void run() {
+                if(calib_counter > 0){
+                    calib_counter--;
+                }else{
+                    calib_counter = 60;
+                    request_calib_data();
+                }
+            }
+        };
+        aTimer.schedule(aTask, 1000,1000);
+    }
+    private void request_calib_data(){
+        OkHttpClient okHttpClient = new OkHttpClient();
+        Request.Builder builder = new Request.Builder();
+        String url = "https://ubc.sgp1.cdn.digitaloceanspaces.com/BK_AIR/calib_air_sensor.txt";
+
+
+        Request request = builder.url(url).build();
+
+
+
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Request request, IOException e) {
+                Log.d(TAG,"Testing fail");
+            }
+
+            @Override
+            public void onResponse(Response response) throws IOException {
+
+                String data = response.body().string();
+                mCalibSensors = new Gson().fromJson(data, CalibModel[].class);
+                Log.d(TAG, "Number of sensors: " + mCalibSensors.length);
+            }
+        });
+    }
+
+
+    byte[] test_64_byte = new byte[]{(byte)0xC3, (byte)0xA4, (byte)0x95,(byte)0x85
+            ,(byte)0x8F, (byte)0xB7,(byte)0x0B,(byte)0xDE ,(byte)0x87 ,(byte)0x70 ,(byte)0xB0 ,(byte)0x72 ,(byte)0x4E
+            ,(byte)0x00 ,(byte)0x7D ,(byte)0xF6 ,(byte)0x5B ,(byte)0x9D ,(byte)0x0C ,(byte)0xA7 ,(byte)0x36 ,(byte)0x0F ,(byte)0xA2 ,(byte)0x44 ,(byte)0x2F ,(byte)0xF4 ,(byte)0x74
+            ,(byte)0x71 ,(byte)0xF4 ,(byte)0x26 ,(byte)0x77 ,(byte)0x30 ,(byte)0xE8 ,(byte)0xC1 ,(byte)0x35 ,(byte)0x15 ,(byte)0x37 ,(byte)0xA2 ,(byte)0x2C ,(byte)0xFD ,(byte)0xE2
+            ,(byte)0x8B ,(byte)0xF2 ,(byte)0x97 ,(byte)0xF4 ,(byte)0xE1 ,(byte)0x24 ,(byte)0x2D ,(byte)0xE8 ,(byte)0xC1 ,(byte)0x35 ,(byte)0x15 ,(byte)0x37 ,(byte)0xA2 ,(byte)0x2C
+            ,(byte)0xFD ,(byte)0xE2 ,(byte)0x8B ,(byte)0xF2 ,(byte)0x97 ,(byte)0xF4 ,(byte)0xE1 ,(byte)0x24 ,(byte)0x2D};
+
+    private void reset_app(){
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
+
+
 
 
     private void sendDataToRapido(final String[] data){
@@ -257,7 +408,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
     }
 
     private void sendHuRuKuServer(String data){
-        String url = "http://hazard-monitoring-system.herokuapp.com/api/1.0/getData?gatewayID=1&sensorID=1&sensorValue=["
+        String url = "http://hazard-monitoring-system.herokuapp.com/api/1.0/getData?gatewayID=2&sensorID=2&sensorValue=["
         + data + "]&latlon=[10.23,106.76]";
         OkHttpClient okHttpClient = new OkHttpClient();
         Request.Builder builder = new Request.Builder();
@@ -281,27 +432,187 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
 
     }
 
+    public void postHuRuKuServer(final String ID_Sensor, final String dataSensor) {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String encodeData = AES256(dataSensor).replace("\n","");
+
+                    URL url = new URL("https://hazard-monitoring-system.herokuapp.com/api/1.0/msg");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("Content-Type", "application/json");
+                    //conn.setRequestProperty("Accept","application/json");
+                    conn.setDoOutput(true);
+                    conn.setDoInput(true);
+
+                    DataOutputStream os = new DataOutputStream(conn.getOutputStream());
+
+                    String data = "{\n" +
+                            "    \"gatewayID\": 4,\n" +
+                            "    \"sensorID\" : " + ID_Sensor + ",\n" +
+                            "    \"lat\" : 0.0,\n" +
+                            "    \"long\": 0.0,\n" +
+                            "    \"sensorValue\": \"" + encodeData + "\"\n" +
+                            "}";
+
+
+                    os.writeBytes(data);
+
+                    os.flush();
+                    os.close();
+
+                    Log.i(TAG, "SERVER RESPONSE: " + String.valueOf(conn.getResponseCode()));
+                    Log.i(TAG , "SERVER RESPONSE: " + conn.getResponseMessage());
+
+                    conn.disconnect();
+
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        thread.start();
+    }
+
     String buffer  = "";
+
+    byte[] test_byte = {0x01, 0x02, 0x03, 0x04};
+    private void testConvert(){
+        String test_str = new String(test_byte);
+        Log.d(TAG, test_str);
+        byte[] hello = test_str.getBytes();
+        Log.d(TAG, hello[0] + " " + hello[1] + hello[2] + hello[3]);
+    }
+
+
+    void processBuffer3(){
+        int begin_index = -1;
+        int end_index = 0;
+        for(end_index = index_byte - 1; end_index>=2; end_index--){
+            if(arr_byte[end_index] == (byte)0x0a && arr_byte[end_index-1] == (byte)0x0d && arr_byte[end_index - 2] == 0x21){
+                Log.d(TAG, "Find an end point " + end_index);
+                break;
+            }
+        }
+        if(end_index >= 10){
+            for(begin_index = end_index - 3; begin_index>=2; begin_index--){
+                if(arr_byte[begin_index] == 0x23 && arr_byte[begin_index - 1] == 0x23 && arr_byte[begin_index -2] == 0x23  ){
+                    Log.d(TAG, "Find an start point " + begin_index);
+                    break;
+                }
+            }
+        }
+        if(end_index > begin_index && begin_index >=0){
+            index_byte -= end_index;
+            byte[] encryptData = new byte[64];
+            for(int i = 0; i < 64; i++){
+                encryptData[i] = arr_byte[i + begin_index + 1];
+            }
+            String decodeData = new String(DecodeAES128(encryptData)).replaceAll("A","");
+
+
+            String[] splitData = decodeData.split(Pattern.quote(","));
+            final String ID = splitData[0];
+            Log.d(TAG, "ID: " + ID);
+            decodeData = decodeData.substring(ID.length() + 1);
+            Log.d(TAG, "Sensory data: "  + decodeData);
+            postHuRuKuServer(ID , decodeData);
+            sendDataToRapido(decodeData.split(Pattern.quote(",")));
+            final String abc = decodeData;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    txtLocation.setText(ID + "**" + abc);
+                }
+            });
+        }
+    }
+
+
+    void processBuffer2(){
+        if(buffer.contains("#") && buffer.contains("!")){
+            int beginIndex = buffer.indexOf("#");
+            int endIndex = buffer.indexOf("!");
+            if(beginIndex >=0 && endIndex > beginIndex){
+                String data = buffer.substring(beginIndex + 1, endIndex);
+                Log.d("ABC", "Extract: "  + data);
+                Log.d("ABC", "Len: "  + data.getBytes().length);
+                if(data.length() == 64) {
+                    String decodeData = new String(DecodeAES128(data.getBytes()));
+
+                    Log.d("ABC", "Decode: " + decodeData);
+                }
+            }
+            buffer = "";
+        }
+    }
+
     void processBuffer(){
         //TODO
         String test = "#27;58;3;593$";
         Pattern sensory_data = Pattern.compile("\\#(.+)\\!");
         Matcher m = sensory_data.matcher(new String(buffer));
+
+
+
         while (m.find() == true){
             String data = m.group(1);
-            Log.d("ABC", data);
+            Log.d("ABC", "Process" + data);
 
-            sendDataToRapido(data.split(Pattern.quote(",")));
-            sendHuRuKuServer(data);
+//            final String decodeData = new String(DecodeAES128(data.getBytes())).replaceAll("41","");
+//            runOnUiThread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    txtLocation.setText(decodeData);
+//                }
+//            });
+//            decodeData = decodeData.replaceAll("A","");
+//            Log.d(TAG, "Decode: " + decodeData);
+//
+//            String[] splitData = decodeData.split(Pattern.quote(","));
+//            String ID = splitData[0];
+//            Log.d(TAG, "ID: " + ID);
+//            decodeData = decodeData.substring(ID.length());
+//            Log.d(TAG, "Sensory data: "  + decodeData);
+
+            //sendDataToRapido(data.split(Pattern.quote(",")));
+            //sendHuRuKuServer(data);
+            //postHuRuKuServer(data);
             buffer = "";
         }
     }
 
+    byte[] arr_byte = new byte[1024];
+    int index_byte = 0;
     @Override
-    public void onNewData(byte[] data) {
-        buffer += new String(data);
-        Log.d("ABC", new String(data));
-        processBuffer();
+    public void onNewData(final byte[] data) {
+//        buffer += new String(data);
+//        Log.d("ABC", new String(data));
+//        runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
+//                //txtLocation.setText(new String(data));
+//            }
+//        });
+
+
+
+        timer_counter = 30;
+
+        //processBuffer();
+
+        for(int i = 0; i < data.length; i++){
+            arr_byte[index_byte++] = data[i];
+            if(index_byte == 1024) index_byte = 0;
+        }
+
+        //Log.d("ABC","Receive: " + data.length);
+        //Log.d("ABC", "Buffer lengh" + index_byte);
+        processBuffer3();
     }
 
     @Override
@@ -395,5 +706,78 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
     }
 
 
+
+
+    private  String AES256(String data){
+        try {
+
+            byte[] key = {-23,-18,-59,-75,-34,123,-109,-8,29,-62,-60,4,-22,-74,-34,7,46,-52,29,-109,-3,70,69,113,98,80,-34,98,120,6,-47,-112};
+            byte[] input = data.getBytes();
+            byte[] output = null;
+
+            SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
+            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+            output = cipher.doFinal(input);
+
+            String encoded = Base64.encodeToString(output, Base64.DEFAULT);
+            return encoded;
+
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
+    private  byte[] AES128(String data){
+        try {
+
+            byte[] key = {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53};
+            byte[] input = data.getBytes();
+            byte[] output = null;
+
+            SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
+            //Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
+            //Cipher cipher = Cipher.getInstance("AES");
+
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+            output = cipher.doFinal(input);
+            return output;
+            //return bytesToHex(output);
+
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+    private  byte[] DecodeAES128(byte[] data){
+        try {
+
+            byte[] key = {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53};
+            byte[] input = data;
+            byte[] output = null;
+
+            SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
+            //Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            output = cipher.doFinal(input);
+
+            return  output;
+
+        } catch (Exception ex) {
+            Log.d(TAG, "Error: " + ex.toString());
+            return null;
+        }
+    }
+
+    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+    public String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
 
 }
