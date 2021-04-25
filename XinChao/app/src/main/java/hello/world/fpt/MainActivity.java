@@ -127,7 +127,9 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         btnSetting.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                launchAppFromPackageName("com.android.settings");
+                //launchAppFromPackageName("com.android.settings");
+                Intent intent = new Intent(MainActivity.this, SettingActivity.class);
+                startActivity(intent);
             }
         });
 
@@ -135,7 +137,8 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         btnExit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                launchAppFromPackageName("com.android.rockchip");
+                //launchAppFromPackageName("com.android.rockchip");
+                reset_app();
             }
         });
 
@@ -151,6 +154,32 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         setup_reset_timer();
         setup_calib_timer();
         //testConvert();
+        try {
+
+            NPNConstants.SETTING_PM1_0_MIN = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_PM1_0_MIN));
+            NPNConstants.SETTING_PM1_0_MAX = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_PM1_0_MAX));
+            NPNConstants.SETTING_PM2_5_MIN = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_PM2_5_MIN));
+            NPNConstants.SETTING_PM2_5_MAX = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_PM2_5_MAX));
+            NPNConstants.SETTING_PM10_MIN = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_PM10_MIN));
+            NPNConstants.SETTING_PM10_MAX = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_PM10_MAX));
+
+            NPNConstants.SETTING_CO2_MIN = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_CO2_MIN));
+            NPNConstants.SETTING_CO2_MAX = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_CO2_MAX));
+            NPNConstants.SETTING_CO_MIN = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_CO_MIN));
+            NPNConstants.SETTING_CO_MAX = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_CO_MAX));
+            NPNConstants.SETTING_HCHO_MIN = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_HCHO_MIN));
+            NPNConstants.SETTING_HCHO_MAX = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_HCHO_MAX));
+
+
+            NPNConstants.SETTING_ID_STATION = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_ID_STATION));
+            NPNConstants.SETTING_ID_SENSOR = Integer.parseInt(Ultis.loadKey(this, NPNConstants.SETTING_KEY_ID_SENSOR));
+
+
+
+        }catch (Exception e){
+
+        }
+
     }
 
     CalibModel[] mCalibSensors;
@@ -164,6 +193,17 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         }
     }
 
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if(keyCode == KeyEvent.KEYCODE_0){
+            launchAppFromPackageName("com.android.settings");
+            return true;
+        }
+        if(keyCode == KeyEvent.KEYCODE_1){
+            launchAppFromPackageName("com.android.rockchip");
+        }
+        return super.onKeyUp(keyCode, event);
+    }
 
     private void openUART(){
         UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
@@ -267,7 +307,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
                 if(timer_counter > 0){
                     timer_counter--;
                 }else{
-                    //reset_app();
+                    reset_app();
                 }
             }
         };
@@ -276,7 +316,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
 
 
     Timer aCalibTimer;
-    private int calib_counter = 60;
+    private int calib_counter = 30;
     private void setup_calib_timer(){
         aCalibTimer = new Timer();
         TimerTask aTask = new TimerTask() {
@@ -285,7 +325,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
                 if(calib_counter > 0){
                     calib_counter--;
                 }else{
-                    calib_counter = 60;
+                    calib_counter = 120;
                     request_calib_data();
                 }
             }
@@ -334,26 +374,14 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
 
 
 
-    private void sendDataToRapido(final String[] data){
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                txtTemp.setText(data[0] + "");
-                txtHumi.setText(data[1] + "");
-                txtPM_1_0.setText(data[2] + "");
-                txtPM_2_5.setText(data[3] + "");
-                txtPM_10.setText(data[4] + "");
-                txtCO2.setText(data[5] + "");
-                txtCO.setText(data[6] + "");
-                txtHCHO.setText(data[7] + "");
-            }
-        });
+    private void sendDataToRapido(String ID_Sensor, final String[] data){
+
 
 
         OkHttpClient okHttpClient = new OkHttpClient();
         Request.Builder builder = new Request.Builder();
 
-        String url = "https://rapido.npnlab.com/api/rapido/push?station_id=" + "9" +
+        String url = "https://rapido.npnlab.com/api/rapido/push?station_id=" + ID_Sensor +
 
                 "&sensors[0].id=1&sensors[0].value=SEN_TDS" +
                 "&sensors[1].id=1005&sensors[1].value=SEN_DHT11_TEMP" +
@@ -448,9 +476,9 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
                     conn.setDoInput(true);
 
                     DataOutputStream os = new DataOutputStream(conn.getOutputStream());
-
+                    Log.d(TAG, "Gateway ID: " + NPNConstants.SETTING_ID_STATION);
                     String data = "{\n" +
-                            "    \"gatewayID\": 4,\n" +
+                            "    \"gatewayID\": "+ NPNConstants.SETTING_ID_STATION + ",\n" +
                             "    \"sensorID\" : " + ID_Sensor + ",\n" +
                             "    \"lat\" : 0.0,\n" +
                             "    \"long\": 0.0,\n" +
@@ -488,6 +516,22 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
         Log.d(TAG, hello[0] + " " + hello[1] + hello[2] + hello[3]);
     }
 
+    public void refreshDisplay(final String[] data){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                txtTemp.setText(data[0] + "");
+                txtHumi.setText(data[1] + "");
+                txtPM_1_0.setText(data[2] + "");
+                txtPM_2_5.setText(data[3] + "");
+                txtPM_10.setText(data[4] + "");
+                txtCO2.setText(data[5] + "");
+                txtCO.setText(data[6] + "");
+                txtHCHO.setText(data[7] + "");
+            }
+        });
+    }
+
 
     void processBuffer3(){
         int begin_index = -1;
@@ -516,19 +560,67 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
 
 
             String[] splitData = decodeData.split(Pattern.quote(","));
-            final String ID = splitData[0];
-            Log.d(TAG, "ID: " + ID);
-            decodeData = decodeData.substring(ID.length() + 1);
-            Log.d(TAG, "Sensory data: "  + decodeData);
-            postHuRuKuServer(ID , decodeData);
-            sendDataToRapido(decodeData.split(Pattern.quote(",")));
-            final String abc = decodeData;
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    txtLocation.setText(ID + "**" + abc);
+
+
+            if(splitData.length == 9 && mCalibSensors  != null){
+                final String ID = splitData[0];
+                Log.d(TAG, "ID: " + ID);
+                decodeData = decodeData.substring(ID.length() + 1);
+                Log.d(TAG, "Sensory data: "  + decodeData);
+
+                final String abc = decodeData;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        txtLocation.setText(ID + "**" +
+                                "" + abc);
+                    }
+                });
+
+
+                float temp = Float.parseFloat(splitData[1]);
+                float humi = Float.parseFloat(splitData[2]);
+                float pm1_0 = Float.parseFloat(splitData[3]);
+                float pm2_5 = Float.parseFloat(splitData[4]);
+                float pm10 = Float.parseFloat(splitData[5]);
+                float co2 = Float.parseFloat(splitData[6]);
+                float co = Float.parseFloat(splitData[7]);
+                float hcho = Float.parseFloat(splitData[8]);
+                for(int i = 0; i < mCalibSensors.length; i++){
+                    if(mCalibSensors[i].getID() == Integer.parseInt(splitData[0])){
+                        temp = temp * mCalibSensors[i].getTEMP();
+                        humi = humi * mCalibSensors[i].getHUMI();
+                        pm1_0 = pm1_0 * mCalibSensors[i].getPM1_0();
+                        pm2_5 = pm2_5 * mCalibSensors[i].getPM2_5();
+                        pm10 = pm10 * mCalibSensors[i].getPM10();
+                        co2 = co2 * mCalibSensors[i].getCO2();
+                        co = co * mCalibSensors[i].getCO();
+                        hcho = hcho * mCalibSensors[i].getHCHO();
+
+                        String calibtedData = "";
+                        calibtedData += (String.format("%.1f", temp)) .replace(",",".")  + ",";
+                        calibtedData += (String.format("%.1f", humi))  .replace(",",".") + ",";
+                        calibtedData += (String.format("%.0f", pm1_0)).replace(",",".")  + ",";
+                        calibtedData += (String.format("%.0f", pm2_5)) .replace(",",".") + ",";
+                        calibtedData += (String.format("%.0f", pm10)).replace(",",".")   + ",";
+                        calibtedData += (String.format("%.0f", co2)).replace(",",".")    + ",";
+                        calibtedData += (String.format("%.0f", co)) .replace(",",".")    + ",";
+                        calibtedData += (String.format("%.0f", hcho)).replace(",",".");
+
+                        postHuRuKuServer(ID , calibtedData);
+                        if(Integer.parseInt(ID) == NPNConstants.SETTING_ID_SENSOR) {
+                            Log.d(TAG, "Send data to Rapido");
+                            sendDataToRapido(ID, calibtedData.split(Pattern.quote(",")));
+                        }
+                        Log.d(TAG, "Send Huruku: " +calibtedData);
+                        refreshDisplay(calibtedData.split(Pattern.quote(",")));
+                        break;
+                    }
                 }
-            });
+            }
+
+
+
         }
     }
 
