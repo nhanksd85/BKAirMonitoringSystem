@@ -6,8 +6,8 @@ android {
         applicationId "bk.iot.gateway"
         minSdkVersion 17
         targetSdkVersion 18
-        versionCode 2125
-        versionName "1.212.5"
+        versionCode 2126
+        versionName "1.212.6"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {

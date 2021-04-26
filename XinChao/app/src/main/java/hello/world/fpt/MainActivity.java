@@ -142,15 +142,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
             }
         });
 
-        //Log.d(TAG, AES256("30,41,15,23,23,1043,0,0"));
-        //postHuRuKuServer("30,41,15,23,23,1043,0,0");
-        //Log.d(TAG, bytesToHex(AES128("ABCDEFGHIJKLMNOPABCDEFGHIJKLMNOP")));
 
-        //txtLocation.setText(bytesToHex(DecodeAES128(AES128("ABCDEFGHIJKLMNOPABCDEFGHIJKLMNOP"))));
-
-        //Log.d(TAG,bytesToHex(DecodeAES128(test_64_byte)));
-
-        txtLocation.setText(bytesToHex(DecodeAES128(test_64_byte)));
         setup_reset_timer();
         setup_calib_timer();
         //testConvert();
@@ -693,7 +685,7 @@ public class MainActivity extends Activity implements SerialInputOutputManager.L
 
 
 
-        timer_counter = 30;
+        timer_counter = 120;
 
         //processBuffer();
 
